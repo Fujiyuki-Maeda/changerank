@@ -1,14 +1,21 @@
 from pathlib import Path
 import os
+from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-@vs5ab!6b(4ea99(we1x6)2qk*c5-yyq(@!=)oboz!4!5c6nx8"
 
-DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+try:
+    from .local_settings import *
+    DEBUG = True
+    FRONTEND_URL = 'http://127.0.0.1:8000/'
+    ALLOWED_HOSTS = []
+
+except ImportError:
+    DEBUG = False
+    SECRET_KEY = get_random_secret_key()
+    ALLOWED_HOSTS = ['.pythonanywhere.com']
 
 INSTALLED_APPS = [
     "django.contrib.admin",
