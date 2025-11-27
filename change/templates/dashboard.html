@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部門別売上ランキング推移</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 20px; color: #2c3e50; }
+        
+        /* パンくずリスト */
+        .breadcrumbs { margin-bottom: 20px; font-size: 1rem; color: #666; background: #f8f9fa; padding: 10px 15px; border-radius: 6px; }
+        .breadcrumbs a { text-decoration: none; color: #007bff; font-weight: bold; }
+        .breadcrumbs a:hover { text-decoration: underline; }
+        .breadcrumbs span { color: #999; margin: 0 5px; }
+        .current-node { font-weight: bold; color: #333; }
+
+        /* ボタンエリア */
+        .action-buttons { text-align: right; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 8px 15px; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-left: 10px; transition: opacity 0.3s; font-size: 0.9rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn-trend { background: #17a2b8; }
+        .btn-shop { background: #28a745; }
+
+        /* テーブルデザイン */
+        .table-responsive { overflow-x: auto; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        
+        .history-table th, .history-table td { 
+            padding: 12px 8px; 
+            border: 1px solid #eee; 
+            text-align: center;
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+        
+        .history-table th { background: #007bff; color: white; white-space: nowrap; }
+        .history-table th.dept-col { position: sticky; left: 0; z-index: 10; background: #0056b3; width: 200px; }
+        .history-table td.dept-col { 
+            position: sticky; left: 0; z-index: 5; 
+            background: #f8f9fa; font-weight: bold; text-align: left; 
+            border-right: 2px solid #ddd;
+        }
+        
+        /* リンク付き部門名 */
+        .dept-link { color: #007bff; text-decoration: none; display: block; width: 100%; height: 100%; }
+        .dept-link:hover { text-decoration: underline; color: #0056b3; }
+        .dept-static { color: #333; cursor: default; }
+
+        /* ランク表示 */
+        .rank-num { font-size: 1.1rem; font-weight: bold; display: inline-block; margin-right: 5px; }
+        .rank-1 { color: #d32f2f; font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        .rank-2 { color: #2c3e50; }
+        .rank-3 { color: #2c3e50; }
+        
+        /* シェア表示バッジ */
+        .share-badge { 
+            font-size: 0.75rem; color: #555; background: #e9ecef; padding: 2px 6px; border-radius: 12px; display: inline-block; white-space: nowrap;
+        }
+
+        .no-data { color: #ccc; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏆 部門別 順位推移 ({{ years.0 }} - {{ years|last }})</h1>
+    
+    <div class="action-buttons">
+        <a href="{% url 'trends' %}" class="btn btn-trend">📈 推移グラフ</a>
+        <a href="{% url 'shop_ranking' %}" class="btn btn-shop">🏢 店舗ランキング</a>
+        <a href="{% url 'profit_ranking' %}" class="btn" style="background: #e67e22;">💰 粗利ランキング</a>
+        <a href="{% url 'profit_map' %}" class="btn" style="background: #9b59b6;">📊 利益率マップ</a>
+    </div>
+
+    <!-- パンくずリスト (ドリルダウンナビゲーション) -->
+    <div class="breadcrumbs">
+        <a href="{% url 'dashboard' %}">TOP (全社)</a>
+        {% for bc in breadcrumbs %}
+            <span>&gt;</span>
+            <a href="{% url 'dashboard' %}?parent_id={{ bc.id }}">{{ bc.name }}</a>
+        {% endfor %}
+        <span>&gt;</span>
+        <span class="current-node">{{ current_title }}</span>
+    </div>
+
+    {% if error %}
+        <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
+    {% else %}
+        
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th class="dept-col">部門名</th>
+                        {% for year in years %}
+                            <th>{{ year }}年</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                    <tr>
+                        <td class="dept-col">
+                            {% if row.is_clickable %}
+                                <a href="{% url 'dashboard' %}?parent_id={{ row.id }}" class="dept-link">
+                                    📂 {{ row.name }}
+                                </a>
+                            {% else %}
+                                <span class="dept-static">📄 {{ row.name }}</span>
+                            {% endif %}
+                        </td>
+                        {% for cell in row.cells %}
+                            <td>
+                                {% if cell.rank %}
+                                    <div>
+                                        <span class="rank-num rank-{{ cell.rank }}">
+                                            {% if cell.rank == 1 %}🥇{% elif cell.rank == 2 %}🥈{% elif cell.rank == 3 %}🥉{% else %}{{ cell.rank }}位{% endif %}
+                                        </span>
+                                        <br>
+                                        <span class="share-badge">{{ cell.share }}%</span>
+                                    </div>
+                                {% else %}
+                                    <span class="no-data">-</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">※ 順位下の数値は売上構成比（シェア）です。<br>部門名をクリックすると詳細（内訳）が見られます。</p>
+    {% endif %}
+</div>
+
+</body>
+</html>

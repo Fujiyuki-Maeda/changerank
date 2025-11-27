@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店舗別 売上ランキング推移</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 10px; color: #2c3e50; }
+        .sub-title { text-align: center; color: #666; margin-bottom: 30px; font-size: 1.1rem; }
+        
+        .nav-links { text-align: left; margin-bottom: 20px; }
+        .nav-links a { text-decoration: none; color: #6c757d; font-weight: bold; padding: 5px 10px; border-radius: 5px; background: #eee; transition: background 0.3s; }
+        .nav-links a:hover { background: #ddd; }
+
+        /* コントロールエリア（部門選択など） */
+        .controls-area { 
+            background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;
+        }
+        .dept-select { padding: 8px 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ced4da; cursor: pointer; min-width: 200px; }
+
+        /* 絞り込みエリア */
+        .filter-box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
+        .filter-summary { cursor: pointer; font-weight: bold; color: #007bff; outline: none; }
+        .filter-content { margin-top: 15px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; border: 1px solid #ddd; background: white; border-radius: 4px; }
+        .shop-item label { display: flex; align-items: center; cursor: pointer; font-size: 0.9rem; }
+        .shop-item input { margin-right: 6px; }
+        .filter-actions { margin-top: 10px; text-align: right; }
+        .btn-filter { background: #007bff; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-filter:hover { background: #0056b3; }
+        .btn-reset { background: #6c757d; color: white; text-decoration: none; padding: 8px 15px; border-radius: 4px; font-size: 0.9rem; margin-right: 10px; }
+
+        /* テーブルデザイン */
+        .table-responsive { overflow-x: auto; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        
+        .history-table th, .history-table td { 
+            padding: 12px 8px; 
+            border: 1px solid #eee; 
+            text-align: center;
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+        
+        .history-table th { background: #28a745; color: white; white-space: nowrap; }
+        .history-table th.shop-col { position: sticky; left: 0; z-index: 10; background: #1e7e34; width: 150px; }
+        .history-table td.shop-col { 
+            position: sticky; left: 0; z-index: 5; 
+            background: #f8f9fa; font-weight: bold; text-align: left; 
+            border-right: 2px solid #ddd;
+        }
+
+        /* ランク表示 */
+        .rank-num { font-size: 1.1rem; font-weight: bold; display: inline-block; margin-right: 5px; }
+        .rank-1 { color: #d32f2f; font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        .rank-2 { color: #2c3e50; }
+        .rank-3 { color: #2c3e50; }
+        
+        /* 変動表示 */
+        .diff { font-size: 0.85rem; font-weight: bold; display: block; margin-top: 2px; }
+        .rank-up { color: #e74c3c; }   /* 赤: 上昇 */
+        .rank-down { color: #3498db; } /* 青: 下降 */
+        .rank-same { color: #ccc; }    /* 灰: 維持 */
+        
+        /* 新店・閉店バッジ */
+        .badge { 
+            font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; color: white; font-weight: bold; display: inline-block; margin-top: 2px; white-space: nowrap;
+        }
+        .store-new { background-color: #e67e22; } /* オレンジ */
+        .store-closed { background-color: #95a5a6; } /* グレー */
+
+        .no-data { color: #ccc; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav-links">
+        <a href="{% url 'dashboard' %}">← 部門ランキングに戻る</a>
+    </div>
+
+    <h1>🏢 店舗別 売上ランキング</h1>
+    <div class="sub-title">対象: <strong>{{ selected_dept_name }}</strong></div>
+    
+    {% if error %}
+        <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
+    {% else %}
+        
+        <!-- 部門選択エリア -->
+        <form method="get" action="" id="deptForm" class="controls-area">
+            <label for="dept-select" style="font-weight: bold;">📂 表示する部門:</label>
+            <select name="dept_code" id="dept-select" class="dept-select" onchange="this.form.submit()">
+                <option value="" {% if not selected_dept_code %}selected{% endif %}>全店合計</option>
+                {% for dept in all_10_depts %}
+                    <option value="{{ dept.code }}" {% if selected_dept_code == dept.code|stringformat:"s" %}selected{% endif %}>
+                        {{ dept.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            <!-- 選択中の店舗IDもhiddenで保持する -->
+            {% for sid in selected_shop_ids %}
+                <input type="hidden" name="selected_shops" value="{{ sid }}">
+            {% endfor %}
+        </form>
+
+        <!-- 店舗絞り込みエリア -->
+        <details class="filter-box" {% if selected_shop_ids %}open{% endif %}>
+            <summary class="filter-summary">🔍 比較する店舗を選択（クリックで開閉）</summary>
+            <div class="filter-content">
+                <form method="get" action="">
+                    <!-- 選択中の部門もhiddenで保持 -->
+                    <input type="hidden" name="dept_code" value="{{ selected_dept_code|default:'' }}">
+                    
+                    <div class="shop-grid">
+                        {% for shop in checkbox_shops %}
+                            <div class="shop-item">
+                                <label>
+                                    <input type="checkbox" name="selected_shops" value="{{ shop.id }}"
+                                        {% if shop.id in selected_shop_ids %}checked{% endif %}>
+                                    {{ shop.name }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="filter-actions">
+                        <a href="{% url 'shop_ranking' %}?dept_code={{ selected_dept_code|default:'' }}" class="btn-reset">全解除して表示</a>
+                        <button type="submit" class="btn-filter">選択した店舗を表示</button>
+                    </div>
+                </form>
+            </div>
+        </details>
+
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th class="shop-col">店舗名</th>
+                        {% for year in years %}
+                            <th>{{ year }}年</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                    <tr>
+                        <td class="shop-col">{{ row.name }}</td>
+                        {% for cell in row.cells %}
+                            <td>
+                                {% if cell.rank %}
+                                    <div>
+                                        <span class="rank-num rank-{{ cell.rank }}">
+                                            {% if cell.rank == 1 %}🥇{% elif cell.rank == 2 %}🥈{% elif cell.rank == 3 %}🥉{% else %}{{ cell.rank }}位{% endif %}
+                                        </span>
+                                        
+                                        {% if cell.status_text == "新店" %}
+                                            <br><span class="badge store-new">新店</span>
+                                        {% elif cell.diff_icon %}
+                                            <span class="diff {{ cell.diff_class }}">
+                                                {{ cell.diff_icon }}
+                                            </span>
+                                        {% else %}
+                                            <span class="diff" style="color: transparent;">-</span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    {% if cell.status_text == "閉店" %}
+                                        <span class="badge store-closed">閉店</span>
+                                    {% else %}
+                                        <span class="no-data">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">※ 矢印は前年との順位比較、<span class="badge store-new">新店</span>は新規オープン、<span class="badge store-closed">閉店</span>はデータ無しを表します</p>
+    {% endif %}
+</div>
+
+</body>
+</html>

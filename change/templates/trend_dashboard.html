@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部門別シェア推移</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        
+        .back-btn { 
+            display: inline-block; 
+            margin-bottom: 20px; 
+            padding: 10px 20px; 
+            background: #6c757d; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .back-btn:hover { background: #5a6268; }
+
+        .chart-container { position: relative; height: 60vh; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="{% url 'dashboard' %}" class="back-btn">← ランキングに戻る</a>
+    
+    <h1>📈 部門別 売上シェア推移</h1>
+    
+    {% if error %}
+        <p style="color: red; text-align: center;">{{ error }}</p>
+    {% else %}
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // views.pyから渡されたデータを受け取る
+    const labels = {{ labels|safe }};
+    const datasets = {{ datasets|safe }};
+
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'シェア (%)'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + '%';
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

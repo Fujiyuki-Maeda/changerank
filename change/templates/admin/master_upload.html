@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="padding: 20px; background-color: #fff; border-radius: 5px;">
+    <h2>{{ title }}</h2>
+    <p>10-35-90-180部門の階層構造Excelをアップロードしてください。</p>
+    <p>形式: A列(10コード), B列(10名), C列(35コード), D列(35名), E列(90コード), F列(90名), G列(180コード), H列(180名)</p>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin: 20px 0;">
+            {{ form.as_p }}
+        </div>
+        <input type="submit" value="アップロード開始" style="background: #79aec8; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+    </form>
+
+    {% if messages %}
+    <ul class="messages" style="margin-top: 20px;">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}

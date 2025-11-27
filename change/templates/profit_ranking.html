@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部門別 粗利率ランキング推移</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 20px; color: #e67e22; } /* オレンジ系 */
+        
+        .nav-links { text-align: left; margin-bottom: 20px; }
+        .nav-links a { text-decoration: none; color: #6c757d; font-weight: bold; padding: 5px 10px; border-radius: 5px; background: #eee; transition: background 0.3s; }
+        .nav-links a:hover { background: #ddd; }
+
+        /* テーブルデザイン（年表形式） */
+        .table-responsive { overflow-x: auto; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        
+        .history-table th, .history-table td { 
+            padding: 12px 8px; 
+            border: 1px solid #eee; 
+            text-align: center;
+            font-size: 0.95rem;
+            vertical-align: middle;
+        }
+        
+        .history-table th { background: #e67e22; color: white; white-space: nowrap; }
+        .history-table th.dept-col { position: sticky; left: 0; z-index: 10; background: #d35400; width: 150px; }
+        .history-table td.dept-col { 
+            position: sticky; left: 0; z-index: 5; 
+            background: #f8f9fa; font-weight: bold; text-align: left; 
+            border-right: 2px solid #ddd;
+        }
+
+        /* ランク表示 */
+        .rank-num { font-size: 1.1rem; font-weight: bold; display: block; color: #d35400; }
+        .rank-1 .rank-num { font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        
+        /* 粗利率表示 */
+        .margin-val { font-weight: bold; font-size: 0.85rem; color: #333; display: block; margin: 2px 0; background: #fff3e0; border-radius: 4px; padding: 1px 4px; display: inline-block; }
+
+        /* ギャップ情報 */
+        .gap-info { font-size: 0.75rem; display: block; margin-top: 2px; white-space: nowrap; }
+        .gap-up { color: #e74c3c; font-weight: bold; }   /* 売上より順位が良い */
+        .gap-down { color: #3498db; } /* 売上より順位が悪い */
+        .gap-same { color: #ccc; }
+
+        .no-data { color: #ccc; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav-links">
+        <a href="{% url 'dashboard' %}">← メニューに戻る</a>
+    </div>
+
+    <h1>💰 部門別 粗利率ランキング推移 ({{ years.0 }} - {{ years|last }})</h1>
+    
+    {% if error %}
+        <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
+    {% else %}
+        
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th class="dept-col">部門名</th>
+                        {% for year in years %}
+                            <th>{{ year }}年</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                    <tr>
+                        <td class="dept-col">{{ row.name }}</td>
+                        {% for cell in row.cells %}
+                            <td class="{% if cell.rank == 1 %}rank-1{% endif %}">
+                                {% if cell.rank %}
+                                    <!-- 順位 -->
+                                    <span class="rank-num">
+                                        {% if cell.rank == 1 %}🥇{% elif cell.rank == 2 %}🥈{% elif cell.rank == 3 %}🥉{% else %}{{ cell.rank }}位{% endif %}
+                                    </span>
+                                    
+                                    <!-- 粗利率 -->
+                                    <div><span class="margin-val">{{ cell.margin }}%</span></div>
+
+                                    <!-- ギャップ情報 -->
+                                    <span class="gap-info {{ cell.gap_class }}">
+                                        {{ cell.gap_icon }}
+                                    </span>
+                                {% else %}
+                                    <span class="no-data">-</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">
+            ※ 数字は「粗利率順位」。背景色のついた数字は「粗利率」。<br>
+            下の小さい文字は「売上順位との比較」です。(例: 売5位 ↗ = 売上順位より粗利率順位が良い)
+        </p>
+    {% endif %}
+</div>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="padding: 20px; background-color: #fff; border-radius: 5px;">
+    <h2>{{ title }}</h2>
+    <p>Excelファイル「チェンジ速報.xls」のシート「１８０明細（類）」をアップロードしてください。</p>
+    <p class="text-sm text-gray-600">
+        ※ データ構造: H1に日付、A7から部門コード、B7から部門名、C6/H6/M6...から店舗名、C7/H7/M7...から売上（販売金額）を読み込みます。
+    </p>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin: 20px 0;">
+            {{ form.as_p }}
+        </div>
+        <input type="submit" value="アップロード開始" style="background: #79aec8; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+    </form>
+
+    {% if messages %}
+    <ul class="messages" style="margin-top: 20px;">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}
