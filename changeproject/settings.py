@@ -5,17 +5,17 @@ from django.core.management.utils import get_random_secret_key
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# ★修正ポイント: 複雑な分岐を削除し、直接設定を記述します
+# セキュリティキーは固定の文字列にすることをお勧めしますが、
+# とりあえず動かすためにこのままでも構いません（ただし再起動ごとにログアウトされます）
+SECRET_KEY = "django-insecure-@vs5ab!6b(4ea99(we1x6)2qk*c5-yyq(@!=)oboz!4!5c6nx8"
 
-try:
-    from .local_settings import *
-    DEBUG = True
-    FRONTEND_URL = 'http://127.0.0.1:8000/'
-    ALLOWED_HOSTS = []
+# 本番環境なのでFalse推奨ですが、エラー調査中はTrueでも可
+DEBUG = False 
 
-except ImportError:
-    DEBUG = False
-    SECRET_KEY = get_random_secret_key()
-    ALLOWED_HOSTS = ['.pythonanywhere.com']
+# PythonAnywhereのドメインを許可リストに追加
+ALLOWED_HOSTS = ['changerank.pythonanywhere.com', '127.0.0.1', 'localhost']
+
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -88,8 +88,12 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# 静的ファイルの集約先（PythonAnywhereのWebタブの設定と合わせる）
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# プロジェクト内の静的ファイル置き場
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

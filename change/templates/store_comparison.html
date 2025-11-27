@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店舗比較 (売上構成比)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+        
+        .nav-links { margin-bottom: 20px; }
+        .nav-links a { text-decoration: none; color: #6c757d; font-weight: bold; padding: 5px 10px; background: #eee; border-radius: 5px; }
+        
+        /* フォームエリア */
+        .control-panel { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { font-weight: bold; display: block; margin-bottom: 5px; }
+        select { padding: 8px; font-size: 1rem; width: 100%; max-width: 300px; border-radius: 4px; border: 1px solid #ccc; }
+        
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: white; border-radius: 4px; }
+        .checkbox-item label { display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; }
+        .checkbox-item input { margin-right: 5px; }
+
+        .btn-submit { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem; width: 100%; }
+        .btn-submit:hover { background: #218838; }
+
+        .chart-container { position: relative; height: 60vh; width: 100%; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav-links"><a href="{% url 'dashboard' %}">← メニューに戻る</a></div>
+    <h1>⚖️ 店舗比較 (売上構成比)</h1>
+
+    {% if error %}
+        <p style="color: red; text-align: center;">{{ error }}</p>
+    {% else %}
+        <form method="get" class="control-panel">
+            <div class="form-group">
+                <label class="form-label">📅 対象年:</label>
+                <select name="year">
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}年</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">🏠 自店 (基準):</label>
+                <select name="target_shop">
+                    <option value="">-- 選択してください --</option>
+                    {% for shop in all_shops %}
+                        <option value="{{ shop.id }}" {% if shop.id == target_shop_id %}selected{% endif %}>{{ shop.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">🏢 比較する店舗 (複数選択可):</label>
+                <div class="checkbox-grid">
+                    {% for shop in all_shops %}
+                        <div class="checkbox-item">
+                            <label>
+                                <input type="checkbox" name="comparison_shops" value="{{ shop.id }}"
+                                    {% if shop.id in comparison_shop_ids %}checked{% endif %}>
+                                {{ shop.name }}
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">グラフを表示</button>
+        </form>
+
+        <div class="chart-container">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const chartData = {{ chart_data|default:"{}"|safe }};
+                
+                if (!chartData.datasets || chartData.datasets.length === 0) {
+                    return;
+                }
+
+                const ctx = document.getElementById('comparisonChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: { display: true, text: '構成比 (%)' }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        </script>
+    {% endif %}
+</div>
+</body>
+</html>

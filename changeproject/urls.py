@@ -19,9 +19,15 @@ urlpatterns = [
     # 5. 生徒用: 店舗ランキング
     path('shops/', views.shop_ranking, name='shop_ranking'),
 
-    # 6. 生徒用: 荒利ランキング（新規追加）
+    # 6. 生徒用: 粗利ランキング
     path('profits/', views.profit_ranking, name='profit_ranking'),
 
-    # 7. 生徒用: 利益率マップ（新規追加）
+    # 7. 生徒用: 利益率マップ
     path('map/', views.profit_map, name='profit_map'),
+    
+    # 8. 生徒用: 店舗比較
+    path('comparison/', views.store_comparison, name='store_comparison'),
+
+    # 9. 生徒用: 日向店推移 (★新規追加)
+    path('hyuga/', views.hyuga_trend, name='hyuga_trend'),
 ]

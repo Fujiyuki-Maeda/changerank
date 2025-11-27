@@ -44,13 +44,9 @@
             position: sticky; left: 0; z-index: 5; 
             background: #f8f9fa; font-weight: bold; text-align: left; 
             border-right: 2px solid #ddd;
+            color: #333; /* 文字色を通常の黒系に */
         }
         
-        /* リンク付き部門名 */
-        .dept-link { color: #007bff; text-decoration: none; display: block; width: 100%; height: 100%; }
-        .dept-link:hover { text-decoration: underline; color: #0056b3; }
-        .dept-static { color: #333; cursor: default; }
-
         /* ランク表示 */
         .rank-num { font-size: 1.1rem; font-weight: bold; display: inline-block; margin-right: 5px; }
         .rank-1 { color: #d32f2f; font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
@@ -75,6 +71,9 @@
         <a href="{% url 'shop_ranking' %}" class="btn btn-shop">🏢 店舗ランキング</a>
         <a href="{% url 'profit_ranking' %}" class="btn" style="background: #e67e22;">💰 粗利ランキング</a>
         <a href="{% url 'profit_map' %}" class="btn" style="background: #9b59b6;">📊 利益率マップ</a>
+        <a href="{% url 'store_comparison' %}" class="btn" style="background: #20c997;">⚖️ 店舗比較</a>
+        <!-- ★新規追加: 日向店推移 -->
+        <a href="{% url 'hyuga_trend' %}" class="btn" style="background: #ffc107; color: #333;">🏠 日向店推移</a>
     </div>
 
     <!-- パンくずリスト (ドリルダウンナビゲーション) -->
