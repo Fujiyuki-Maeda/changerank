@@ -40,6 +40,9 @@ urlpatterns = [
 ]
 
 # Debug toolbar URLs (only in DEBUG)
-if settings.DEBUG:
-    import debug_toolbar
-    urlpatterns = [path('__debug__/', include(debug_toolbar.urls))] + urlpatterns
+# Debug toolbar URLs removed/disabled here to avoid loading debug_toolbar when it's
+# not present in INSTALLED_APPS. Uncomment and re-enable only in local development
+# with 'debug_toolbar' in INSTALLED_APPS.
+# if settings.DEBUG:
+#     import debug_toolbar
+#     urlpatterns = [path('__debug__/', include(debug_toolbar.urls))] + urlpatterns

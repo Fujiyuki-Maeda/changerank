@@ -25,15 +25,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'django.contrib.humanize',
-    # Debug toolbar (development)
-    'debug_toolbar',
+    # Debug toolbar (development) -- disabled for now
+    # 'debug_toolbar',
     "change",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # Debug toolbar middleware should be as high as possible
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # Debug toolbar middleware (disabled)
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -104,10 +104,11 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Debug toolbar settings (development convenience)
-INTERNAL_IPS = [
-    '127.0.0.1',
-]
+INTERNAL_IPS = []
 
+# If you want to completely hide the debug toolbar regardless of DEBUG,
+# set SHOW_TOOLBAR_CALLBACK to a function that returns False.
 DEBUG_TOOLBAR_CONFIG = {
     'INTERCEPT_REDIRECTS': False,
+    'SHOW_TOOLBAR_CALLBACK': lambda request: False,
 }
