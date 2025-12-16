@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-@vs5ab!6b(4ea99(we1x6)2qk*c5-yyq(@!=)oboz!4!5c6nx8"
 
 # 本番環境なのでFalse推奨ですが、エラー調査中はTrueでも可
-DEBUG = False 
+DEBUG = True 
 
 # PythonAnywhereのドメインを許可リストに追加
 ALLOWED_HOSTS = ['changerank.pythonanywhere.com', '127.0.0.1', 'localhost']
@@ -24,11 +24,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'django.contrib.humanize',
+    # Debug toolbar (development)
+    'debug_toolbar',
     "change",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Debug toolbar middleware should be as high as possible
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -91,9 +96,18 @@ STATIC_URL = "static/"
 # 静的ファイルの集約先（PythonAnywhereのWebタブの設定と合わせる）
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# プロジェクト内の静的ファイル置き場
+# 開発/テスト中にDjangoが静的ファイルを探す場所
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'),
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Debug toolbar settings (development convenience)
+INTERNAL_IPS = [
+    '127.0.0.1',
+]
+
+DEBUG_TOOLBAR_CONFIG = {
+    'INTERCEPT_REDIRECTS': False,
+}

@@ -1,141 +1,151 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    {% load static %}
-    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>部門別売上ランキング推移</title>
-    <style>
-        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        
-        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 20px; color: #2c3e50; }
-        
-        /* パンくずリスト */
-        .breadcrumbs { margin-bottom: 20px; font-size: 1rem; color: #666; background: #f8f9fa; padding: 10px 15px; border-radius: 6px; }
-        .breadcrumbs a { text-decoration: none; color: #007bff; font-weight: bold; }
-        .breadcrumbs a:hover { text-decoration: underline; }
-        .breadcrumbs span { color: #999; margin: 0 5px; }
-        .current-node { font-weight: bold; color: #333; }
-
-        /* ボタンエリア */
-        .action-buttons { text-align: right; margin-bottom: 20px; }
-        .btn { display: inline-block; padding: 8px 15px; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin-left: 10px; transition: opacity 0.3s; font-size: 0.9rem; }
-        .btn:hover { opacity: 0.9; }
-        .btn-trend { background: #17a2b8; }
-        .btn-shop { background: #28a745; }
-
-        /* テーブルデザイン */
-        .table-responsive { overflow-x: auto; }
-        .history-table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        
-        .history-table th, .history-table td { 
-            padding: 12px 8px; 
-            border: 1px solid #eee; 
-            text-align: center;
-            font-size: 0.95rem;
-            vertical-align: middle;
-        }
-        
-        .history-table th { background: #007bff; color: white; white-space: nowrap; }
-        .history-table th.dept-col { position: sticky; left: 0; z-index: 10; background: #0056b3; width: 200px; }
-        .history-table td.dept-col { 
-            position: sticky; left: 0; z-index: 5; 
-            background: #f8f9fa; font-weight: bold; text-align: left; 
-            border-right: 2px solid #ddd;
-            color: #333; /* 文字色を通常の黒系に */
-        }
-        
-        /* ランク表示 */
-        .rank-num { font-size: 1.1rem; font-weight: bold; display: inline-block; margin-right: 5px; }
-        .rank-1 { color: #d32f2f; font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
-        .rank-2 { color: #2c3e50; }
-        .rank-3 { color: #2c3e50; }
-        
-        /* シェア表示バッジ */
-        .share-badge { 
-            font-size: 0.75rem; color: #555; background: #e9ecef; padding: 2px 6px; border-radius: 12px; display: inline-block; white-space: nowrap;
-        }
-
-        .no-data { color: #ccc; font-size: 0.8rem; }
-    </style>
+    {% load static %}
+    {# {% load humanize %} <-- この行を削除 #} 
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部門別売上ランキング推移</title>
+    
+    <link rel="stylesheet" href="{% static 'change/styles.css' %}">
 </head>
 <body>
 
 <div class="container">
-    <h1>🏆 部門別 順位推移 ({{ years.0 }} - {{ years|last }})</h1>
-    
-    <div class="action-buttons">
-        <a href="{% url 'trends' %}" class="btn btn-trend">📈 推移グラフ</a>
-        <a href="{% url 'shop_ranking' %}" class="btn btn-shop">🏢 店舗ランキング</a>
-        <a href="{% url 'profit_ranking' %}" class="btn" style="background: #e67e22;">💰 粗利ランキング</a>
-        <a href="{% url 'profit_map' %}" class="btn" style="background: #9b59b6;">📊 利益率マップ</a>
-        <a href="{% url 'store_comparison' %}" class="btn" style="background: #20c997;">⚖️ 店舗比較</a>
-        <!-- ★新規追加: 日向店推移 -->
-        <a href="{% url 'hyuga_trend' %}" class="btn" style="background: #ffc107; color: #333;">🏠 日向店推移</a>
-    </div>
+    <h1>🏆 グループ店総合 部門別 順位推移 ({{ years.0 }} - {{ years|last }})</h1>
 
-    <!-- パンくずリスト (ドリルダウンナビゲーション) -->
-    <div class="breadcrumbs">
-        <a href="{% url 'dashboard' %}">TOP (全社)</a>
-        {% for bc in breadcrumbs %}
-            <span>&gt;</span>
-            <a href="{% url 'dashboard' %}?parent_id={{ bc.id }}">{{ bc.name }}</a>
-        {% endfor %}
-        <span>&gt;</span>
-        <span class="current-node">{{ current_title }}</span>
-    </div>
+    <div style="text-align: right; margin-bottom: 15px;">
+        
+        {# 月選択フォームに一本化 #}
+        <form method="GET" action="{% url 'dashboard' %}" style="display: inline-block; margin-left: 10px;">
+            
+            <input type="hidden" name="year" value="{{ selected_year }}"> 
+            
+            <label for="month_selector" style="font-weight: bold; margin-right: 5px;">表示月:</label>
+            <select name="month" id="month_selector" onchange="this.form.submit()" 
+                    style="padding: 5px; border-radius: 5px; border: 1px solid #ccc;"
+                    autocomplete="off">
+                {% for month_choice in month_choices %}
+                    <option value="{{ month_choice.value }}" 
+                            {% if month_choice.value == target_month %}selected{% endif %} 
+                            {% if month_choice.disabled %}disabled{% endif %}>
+                        {{ month_choice.name }}{% if month_choice.disabled %} (データなし){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            
+            {% if request.GET.parent_id %}
+            <input type="hidden" name="parent_id" value="{{ request.GET.parent_id }}">
+            {% endif %}
+        </form>
+    </div>
+    
+    <div class="action-buttons">
+        <a href="{% url 'trends' %}" class="btn btn-trend"><span class="btn-icon">📈</span><span class="btn-text">グループ店総合推移グラフ</span></a>
+        <a href="{% url 'shop_ranking' %}" class="btn btn-shop"><span class="btn-icon">🏢</span><span class="btn-text">店舗ランキング</span></a>
+        <a href="{% url 'store_comparison' %}" class="btn" style="background: #20c997;"><span class="btn-icon">⚖️</span><span class="btn-text">店舗別 売上構成比</span></a>
+        <a href="{% url 'hyuga_trend' %}" class="btn" style="background: #ffc107; color: #333;"><span class="btn-icon">🏠</span><span class="btn-text">日向店推移</span></a>
+        <a href="{% url 'hyuga_vs_others_trend' %}" class="btn" style="background: #6610f2;"><span class="btn-icon">🆚</span><span class="btn-text">部門別比較</span></a>
+        <a href="{% url 'hyuga_vs_others_compare' %}" class="btn" style="background: #007bff; color: #fff;"><span class="btn-icon">VS</span><span class="btn-text">他店舗比較</span></a>
+        <a href="{% url 'customer_net_trend' %}" class="btn" style="background: #17a2b8;"><span class="btn-icon">👥</span><span class="btn-text">客数・ネット推移</span></a>
+        <a href="{% url 'profit_ranking' %}" class="btn" style="background: #e67e22;"><span class="btn-icon">💰</span><span class="btn-text">粗利ランキング</span></a>
 
-    {% if error %}
-        <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
-    {% else %}
-        
-        <div class="table-responsive">
-            <table class="history-table">
-                <thead>
-                    <tr>
-                        <th class="dept-col">部門名</th>
-                        {% for year in years %}
-                            <th>{{ year }}年</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in table_data %}
-                    <tr>
-                        <td class="dept-col">
-                            {% if row.is_clickable %}
-                                <a href="{% url 'dashboard' %}?parent_id={{ row.id }}" class="dept-link">
-                                    📂 {{ row.name }}
-                                </a>
+        <span class="separator"></span>
+
+    <a href="{% url 'upload_sales' %}" class="btn btn-admin">📥 売上取込</a>
+    </div>
+
+    <div class="breadcrumbs">
+        <a href="{% url 'dashboard' %}{% if target_month %}?month={{ target_month }}{% endif %}">TOP (全社)</a>
+        
+        {% for bc in breadcrumbs %}
+            <span>&gt;</span>
+            <a href="{% url 'dashboard' %}?parent_id={{ bc.id }}{% if target_month %}&month={{ target_month }}{% endif %}">{{ bc.name }}</a>
+        {% endfor %}
+        <span>&gt;</span>
+        <span class="current-node">{{ current_title }}</span>
+    </div>
+
+    {# DEBUG block removed in cleanup - production view only #}
+
+    {% if error %}
+        <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
+    {% else %}
+
+        <div class="table-responsive">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th class="dept-col">部門名</th>
+                        {% for year in years %}
+                            <th>{{ year }}年</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_data %}
+                    <tr>
+                <td class="dept-col">
+                    {% if row.is_clickable %}
+                        <a href="{% url 'dashboard' %}?parent_id={{ row.id }}{% if target_month %}&month={{ target_month }}{% endif %}" class="dept-link" title="{{ row.name }}">
+                            <span class="dept-icon">📂</span>
+                            <span class="dept-text">{{ row.name }}</span>
+                        </a>
+                    {% else %}
+                        <span class="dept-static" title="{{ row.name }}"><span class="dept-icon">📄</span><span class="dept-text">{{ row.name }}</span></span>
+                    {% endif %}
+                </td>
+                {% for cell in row.cells %}
+                    <td>
+                        <div style="color: #111;">
+                            {% if cell.rank %}
+                                <span class="rank-num rank-{{ cell.rank }}">
+                                    {% if cell.rank == 1 %}🥇{% elif cell.rank == 2 %}🥈{% elif cell.rank == 3 %}🥉{% else %}{{ cell.rank }}位{% endif %}
+                                </span>
                             {% else %}
-                                <span class="dept-static">📄 {{ row.name }}</span>
+                                <span class="no-data">-</span>
                             {% endif %}
-                        </td>
-                        {% for cell in row.cells %}
-                            <td>
-                                {% if cell.rank %}
-                                    <div>
-                                        <span class="rank-num rank-{{ cell.rank }}">
-                                            {% if cell.rank == 1 %}🥇{% elif cell.rank == 2 %}🥈{% elif cell.rank == 3 %}🥉{% else %}{{ cell.rank }}位{% endif %}
-                                        </span>
-                                        <br>
-                                        <span class="share-badge">{{ cell.share }}%</span>
-                                    </div>
-                                {% else %}
-                                    <span class="no-data">-</span>
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">※ 順位下の数値は売上構成比（シェア）です。<br>部門名をクリックすると詳細（内訳）が見られます。</p>
-    {% endif %}
+                            <br>
+                            {% if cell.share is not None %}
+                                <span class="share-badge">{{ cell.share }}%</span>
+                            {% endif %}
+                            {% if cell.formatted_amount %}
+                                <div class="amount-total-small">
+                                    {{ cell.formatted_amount }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">
+            ※ 順位下の数値は売上構成比（シェア）です。<br>
+            部門名をクリックすると詳細（内訳）が見られます。<br>
+            
+            ※ 現在は**{{ target_month }}月累計**の最終日付データを基に集計しています。
+            
+        </p>
+    {% endif %}
 </div>
+
+<script>
+// ページ表示時にテーブルコンテナを右端へスクロールして最新年を表示する
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        var cont = document.querySelector('.table-responsive');
+        if (cont) {
+            // 少し遅延してからスクロール（スタイル適用後）
+            setTimeout(function() { cont.scrollLeft = cont.scrollWidth; }, 50);
+        }
+    } catch (e) { console.error(e); }
+});
+</script>
 
 </body>
 </html>

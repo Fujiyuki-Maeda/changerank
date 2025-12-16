@@ -1,0 +1,161 @@
+body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+
+        /* コンテナ: PCでは最大1200px、タブレット以下では画面幅の95% */
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 8px; color: #2c3e50; }
+
+        /* パンくずリスト */
+        .breadcrumbs { margin-bottom: 4px; font-size: 1rem; color: #666; background: #f8f9fa; padding: 6px 10px; border-radius: 6px; word-break: break-all; }
+        .breadcrumbs a { text-decoration: none; color: #007bff; font-weight: bold; }
+        .breadcrumbs a:hover { text-decoration: underline; }
+        .breadcrumbs span { color: #999; margin: 0 5px; }
+        .current-node { font-weight: bold; color: #333; }
+
+        /* ボタンエリア: Flexboxに変更してレスポンシブ対応しやすくする */
+        .action-buttons {
+            display: flex;
+            justify-content: center; /* 中央揃えにして見た目を整える */
+            flex-wrap: wrap; /* 折り返し許可 */
+            gap: 10px;       /* ボタン間の隙間 */
+            margin-bottom: 20px;
+            padding: 6px 0; /* 少し上下の余白を与えて均等に見せる */
+        }
+        .btn {
+            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 700;
+            transition: transform 0.08s ease, opacity 0.2s;
+            font-size: 0.95rem;
+            white-space: nowrap; /* 文字の折り返し防止 */
+            min-width: 170px; /* 横幅を揃える */
+            justify-content: center;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-trend { background: #17a2b8; }
+        .btn-shop { background: #28a745; }
+        .btn-admin { background: #6c757d; }
+
+        /* アイコン・テキスト内部スタイル */
+        .btn-icon { display: inline-block; font-size: 1.25rem; line-height: 1; }
+        .btn-text { display: inline-block; font-size: 0.95rem; }
+
+        /* 小さい画面ではボタン幅を柔軟にする */
+        @media screen and (max-width: 600px) {
+            .btn { min-width: 48%; padding: 10px 8px; font-size: 0.9rem; }
+            .btn-icon { font-size: 1.05rem; }
+        }
+
+        .separator {
+            display: inline-block;
+            width: 1px;
+            height: 20px;
+            background: #ccc;
+            margin: 0 5px;
+            vertical-align: middle;
+        }
+
+        /* テーブルデザイン */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* iOSでのスクロールを滑らかに */
+            margin-top: 2px; /* さらに間隔を縮小 */
+        }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+
+        .history-table th, .history-table td {
+            padding: 6px 4px; /* 縦方向のパディングをさらに縮める */
+            border: 1px solid #eee;
+            text-align: center;
+            font-size: 0.9rem;
+            vertical-align: middle;
+            line-height: 1.08;
+        }
+
+        .history-table th { background: #007bff; color: white; white-space: nowrap; }
+        .history-table th.dept-col { position: sticky; left: 0; z-index: 10; background: #0056b3; width: 160px; min-width: 140px; }
+        .history-table td.dept-col {
+            position: sticky; left: 0; z-index: 5;
+            background: #f8f9fa; font-weight: bold; text-align: left;
+            border-right: 2px solid #ddd;
+            color: #333;
+            max-width: 160px; /* 固定列の最大幅を制限して省略表示を有効化 */
+            overflow: hidden;
+        }
+
+        /* 固定列の表示: 静的表示とリンクで別ルールに分離 */
+        .history-table td.dept-col .dept-static,
+        .history-table td.dept-col .dept-link {
+            display: flex;
+            align-items: center;
+            padding: 6px; /* 固定列の内パディングを縮小 */
+            gap: 8px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .dept-icon { flex: 0 0 auto; margin-right: 6px; }
+        .dept-text { flex: 1 1 auto; min-width: 0; /* allow truncation */ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dept-link { color: #007bff; text-decoration: none; }
+
+        /* fixed 列の z-index をヘッダより少し下に設定して重なりを安定させる */
+        .history-table th.dept-col { z-index: 12; }
+        .history-table td.dept-col { z-index: 11; }
+
+        .dept-link { color: #007bff; text-decoration: none; display: inline-flex; align-items: center; }
+        /* ホバー時の下線を消す（UX: 色変化のみ） */
+        .dept-link:hover { text-decoration: none; color: #0056b3; }
+        .dept-static { display: inline-flex; align-items: center; }
+
+        /* 固定列セルの左寄せと余白調整 */
+        .history-table td.dept-col { text-align: left; padding-left: 12px; }
+        .dept-static { color: #333; cursor: default; }
+
+        /* ランク表示 */
+        .rank-num { font-size: 1.1rem; font-weight: bold; display: inline-block; margin-right: 5px; }
+        .rank-1 { color: #d32f2f; font-size: 1.3rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.1); }
+        .rank-2 { color: #2c3e50; }
+        .rank-3 { color: #2c3e50; }
+
+        .share-badge {
+            font-size: 0.75rem; color: #555; background: #e9ecef; padding: 2px 6px; border-radius: 12px; display: inline-block; white-space: nowrap;
+        }
+        .no-data { color: #ccc; font-size: 0.8rem; }
+
+        /* 金額（千円表示）の小さい行内表記 */
+        .amount-total-small { font-size: 0.9rem; color: #111; margin-top: 4px; }
+        /* 元の円表示は廃止（不要になった場合はこのルールを削除して構いません） */
+        .amount-yen { display: none; }
+
+        /* ★タブレット・スマホ向けの調整 (iPad / iPad mini) ★ */
+        @media screen and (max-width: 1024px) {
+            body { padding: 10px; }
+            .container { padding: 15px; width: 98%; }
+            h1 { font-size: 1.5rem; }
+
+            /* ボタンを中央寄せにして押しやすく */
+            .action-buttons {
+                justify-content: center;
+            }
+            .btn {
+                font-size: 0.85rem;
+                padding: 8px 12px;
+                flex: 1 1 auto; /* 幅を自動調整 */
+                text-align: center;
+            }
+            .separator { display: none; } /* 狭いときは区切り線を消す */
+
+            /* テーブルの固定列を少し狭くして表示領域を確保 */
+            .history-table th.dept-col { width: 140px; }
+            .history-table th, .history-table td { font-size: 0.85rem; padding: 8px 4px; }
+
+            /* バッジのサイズ調整 */
+            .rank-num { font-size: 1rem; }
+            .share-badge { font-size: 0.7rem; padding: 1px 4px; }
+        }

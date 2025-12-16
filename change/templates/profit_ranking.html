@@ -43,11 +43,11 @@
         /* 粗利率表示 */
         .margin-val { font-weight: bold; font-size: 0.85rem; color: #333; display: block; margin: 2px 0; background: #fff3e0; border-radius: 4px; padding: 1px 4px; display: inline-block; }
 
-        /* ギャップ情報 */
-        .gap-info { font-size: 0.75rem; display: block; margin-top: 2px; white-space: nowrap; }
-        .gap-up { color: #e74c3c; font-weight: bold; }   /* 売上より順位が良い */
-        .gap-down { color: #3498db; } /* 売上より順位が悪い */
-        .gap-same { color: #ccc; }
+        /* ギャップ情報: 粗利金額は全て黒で統一 */
+        .gap-info { font-size: 0.75rem; display: block; margin-top: 2px; white-space: nowrap; color: #111; }
+        .gap-up { color: #111; font-weight: normal; }
+        .gap-down { color: #111; }
+        .gap-same { color: #111; }
 
         .no-data { color: #ccc; font-size: 0.8rem; }
     </style>
@@ -64,7 +64,16 @@
     {% if error %}
         <p style="color: red; text-align: center; margin-top: 20px;">{{ error }}</p>
     {% else %}
-        
+        <form method="get" style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
+            <label style="font-weight:bold;">📅 表示:</label>
+            <select name="month" style="padding:6px;border-radius:4px;border:1px solid #ccc;">
+                {% for val,label in month_choices %}
+                    <option value="{{ val }}" {% if val == target_month %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" style="padding:6px 10px;background:#e67e22;color:#fff;border:none;border-radius:6px;">表示</button>
+        </form>
+
         <div class="table-responsive">
             <table class="history-table">
                 <thead>
@@ -106,7 +115,7 @@
         </div>
         <p style="text-align: right; font-size: 0.8rem; color: #777; margin-top: 10px;">
             ※ 数字は「粗利率順位」。背景色のついた数字は「粗利率」。<br>
-            下の小さい文字は「売上順位との比較」です。(例: 売5位 ↗ = 売上順位より粗利率順位が良い)
+            下の小さい文字は「粗利金額（カンマ区切り・単位なし）」です。(例: 12,345 )
         </p>
     {% endif %}
 </div>

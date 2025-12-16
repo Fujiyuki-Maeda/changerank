@@ -3,7 +3,6 @@ from django.db import models
 class Shop(models.Model):
     """
     店舗マスタ
-    例: 太宰店, 甘木店, 久留米店
     """
     name = models.CharField("店舗名", max_length=50, unique=True)
 
@@ -18,9 +17,7 @@ class Shop(models.Model):
 class Category(models.Model):
     """
     商品部門マスタ (階層構造対応)
-    例: 10部門(本) -> 35部門(コミック) -> ... -> 180部門(男子コミック)
     """
-    # 階層レベルの定義
     LEVEL_CHOICES = (
         (10, '10部門'),
         (35, '35部門'),
@@ -28,12 +25,10 @@ class Category(models.Model):
         (180, '180部門'),
     )
 
-    # 修正点1: codeから unique=True を削除します
     code = models.IntegerField("部門コード") 
     name = models.CharField("部門名", max_length=100)
     level = models.IntegerField("階層レベル", choices=LEVEL_CHOICES, default=180) 
 
-    # 親部門へのリンク (自分自身への外部キー)
     parent = models.ForeignKey(
         'self', 
         on_delete=models.SET_NULL, 
@@ -44,16 +39,12 @@ class Category(models.Model):
     )
 
     def __str__(self):
-        # レベルも表示するようにしておくと管理しやすいです
         return f"[{self.level}部門:{self.code}] {self.name}"
 
     class Meta:
         verbose_name = "商品部門"
         verbose_name_plural = "商品部門"
         ordering = ['code']
-        
-        # 修正点2: 複合キーを設定します
-        # 「code」と「level」の組み合わせで一意（ユニーク）にします
         unique_together = (('code', 'level'),) 
 
 
@@ -66,8 +57,13 @@ class SalesRecord(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name="店舗")
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="部門")
 
-    amount_sales = models.IntegerField("売上金額", default=0)
-    amount_profit = models.IntegerField("荒利金額", default=0)
+    amount_sales = models.IntegerField("売上金額", default=0)  # 販売
+    amount_profit = models.IntegerField("粗利金額", default=0) # 粗利
+    
+    # ★新規追加項目
+    amount_purchase = models.IntegerField("買取金額", default=0) # 買取
+    amount_supply = models.IntegerField("仕入金額", default=0)  # 仕入
+    amount_net = models.IntegerField("ネット金額", default=0)  # ネット
 
     def __str__(self):
         return f"{self.date} - {self.shop.name} - {self.category.name}"
@@ -77,3 +73,13 @@ class SalesRecord(models.Model):
         verbose_name_plural = "売上データ"
         unique_together = ('shop', 'category', 'date') 
         ordering = ['-date', 'category__code']
+        
+        # 【修正】インデックス定義：ベースフィールドのみを指定
+        indexes = [
+            # date フィールドのクエリを高速化するインデックス
+            models.Index(fields=['date']),
+            # 店舗と日付での絞り込みやソートを高速化
+            models.Index(fields=['shop', '-date']), 
+            # カテゴリと日付のクエリを高速化
+            models.Index(fields=['category', '-date']),
+        ]

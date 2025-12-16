@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    {% load static %}
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>日向 vs 他店 比較（部門レベル選択）</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body{font-family:Helvetica,Arial,sans-serif;background:#f4f4f9;padding:20px;color:#333}
+        .container{max-width:1200px;margin:0 auto;background:#fff;padding:24px;border-radius:10px}
+        .nav-links { text-align: left; margin-bottom: 12px; }
+        .nav-links a { text-decoration: none; color: #6c757d; font-weight: bold; padding: 6px 10px; border-radius: 6px; background: #fff; border:1px solid #efefef }
+        .nav-links a:hover { background: #f0f0f0; }
+        .control-panel{background:#f8f9fa;padding:16px;border-radius:8px;border:1px solid #ddd;margin-bottom:18px}
+        .form-group{margin-bottom:12px}
+        .form-label{font-weight:bold;margin-bottom:6px;display:block}
+        .checkbox-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+        .chart-container{height:48vh}
+        table{width:100%;border-collapse:collapse}
+        th,td{padding:8px;border:1px solid #eee}
+        /* テーブル既定色: 文字は黒、偶数行は薄い背景 */
+        .table-container table td{color:#111}
+        .table-container table th{background:#fafafa;color:#111}
+        .table-container table tbody tr:nth-child(even) td{background:#fbfcff}
+        .metric-pill{display:inline-block;padding:2px 6px;border-radius:4px;font-weight:600}
+        /* スクロール時にヘッダーを固定する */
+        .table-container{max-height:60vh;overflow:auto;border:1px solid #eee}
+        thead th{background:#fff}
+        thead tr:first-child th{position:sticky;top:0;z-index:5}
+        thead tr:nth-child(2) th{position:sticky;top:42px;z-index:4}
+        /* フッターを常に表の下に表示したい場合は以下を有効化
+        tfoot th{position:sticky;bottom:0;background:#fff;z-index:5}
+        */
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav-links"><a href="{% url 'dashboard' %}">← メニューに戻る</a></div>
+    <h1>🆚 日向 vs 他店 比較（部門レベル選択）</h1>
+
+    {% if error %}
+        <p style="color:red">{{ error }}</p>
+    {% else %}
+        <form method="get" class="control-panel">
+            <div class="form-group">
+                <label class="form-label">部門レベル:</label>
+                <select name="dept_level" onchange="this.form.submit()">
+                    {% for l in dept_levels %}
+                        <option value="{{ l }}"{% if dept_level|stringformat:"s" == l|stringformat:"s" %} selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">年:</label>
+                <select name="year" onchange="this.form.submit()">
+                    {% for y in years %}
+                        <option value="{{ y }}"{% if y|stringformat:"s" == selected_year %} selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">月:</label>
+                <select name="month" onchange="this.form.submit()">
+                    {% for m in months %}
+                        <option value="{{ m }}"{% if m|stringformat:"s" == selected_month %} selected{% endif %}>{{ m }}月</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">表示指標:</label>
+                <div class="checkbox-grid">
+                    {% for key,label in available_metrics %}
+                        <label><input type="checkbox" name="metrics" value="{{ key }}" {% if key in selected_metrics %}checked{% endif %}> {{ label }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">比較店舗 (複数選択可):</label>
+                <div class="checkbox-grid">
+                    {% for s in all_shops %}
+                        <label><input type="checkbox" name="comparison_shops" value="{{ s.value }}" {% if s.display in selected_display_names %}checked{% endif %}> {{ s.display }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div style="margin-top:8px;"><button type="submit">表示</button></div>
+        </form>
+
+        <div class="chart-container">
+            <canvas id="compareChart"></canvas>
+        </div>
+
+        <div style="margin-top:8px;">
+            <strong>チャート表示 指標切替:</strong>
+            <span id="chartMetricToggles" style="margin-left:8px"></span>
+        </div>
+
+        <div style="margin-top:8px;">
+            <form method="get" action="{% url 'hyuga_vs_others_compare_csv' %}" style="display:inline-block;margin-left:12px;">
+                <input type="hidden" name="dept_level" value="{{ dept_level }}">
+                <input type="hidden" name="year" value="{{ selected_year }}">
+                <input type="hidden" name="month" value="{{ selected_month }}">
+                {% for mk in selected_metrics %}
+                    <input type="hidden" name="metrics" value="{{ mk }}">
+                {% endfor %}
+                {% for sid in comparison_shop_ids %}
+                    <input type="hidden" name="comparison_shops" value="{{ sid }}">
+                {% endfor %}
+                <button type="submit">CSV出力</button>
+            </form>
+        </div>
+
+        <script>
+            // client-side metric/shop datasets builder + toggle controls
+            const rawRows = JSON.parse('{{ js_table_rows|escapejs }}');
+            const shopNames = JSON.parse('{{ js_table_shops|escapejs }}');
+            const metricKeys = JSON.parse('{{ js_metric_keys|escapejs }}');
+            const metricLabels = JSON.parse('{{ js_metric_labels|escapejs }}');
+            const ctx = document.getElementById('compareChart').getContext('2d');
+
+            // color per metric
+            const metricColors = ['#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+
+            // build datasets: for each metric index, for each shop, create dataset
+            const datasets = [];
+            for (let mk = 0; mk < metricKeys.length; mk++){
+                for (let sidx = 0; sidx < shopNames.length; sidx++){
+                    const data = rawRows.map(r => {
+                        try { return parseInt(String(r.metrics[mk][sidx]).replace(/,/g,'')) || 0 }
+                        catch(e){ return 0 }
+                    });
+                    datasets.push({
+                        id: metricKeys[mk] + '_' + sidx,
+                        metric: metricKeys[mk],
+                        label: shopNames[sidx] + ' ' + metricLabels[mk],
+                        data: data,
+                        borderColor: metricColors[mk % metricColors.length],
+                        backgroundColor: metricColors[mk % metricColors.length],
+                        tension: 0.1,
+                        fill: false,
+                    });
+                }
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: rawRows.map(r => r.dept_name), datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { ticks: { callback: function(v){ try{ return Number(v).toLocaleString() } catch(e) { return v } } } } },
+                    plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(ctx){ var v = ctx.parsed && (ctx.parsed.y!==undefined?ctx.parsed.y:ctx.parsed); return (ctx.dataset.label?ctx.dataset.label+': ':'') + (v?Number(v).toLocaleString():'0'); } } } }
+                }
+            });
+
+            // render metric toggles that control visibility for all shop-datasets of that metric
+            const togglesContainer = document.getElementById('chartMetricToggles');
+            metricKeys.forEach((mk, i) => {
+                const id = 'chart_metric_toggle_' + mk;
+                const chk = document.createElement('input'); chk.type = 'checkbox'; chk.id = id; chk.checked = true;
+                const lbl = document.createElement('label'); lbl.htmlFor = id; lbl.style.marginRight = '8px';
+                lbl.style.marginLeft = '6px';
+                lbl.appendChild(document.createTextNode(metricLabels[i]));
+                chk.addEventListener('change', function(){
+                    const show = this.checked;
+                    chart.data.datasets.forEach(ds => { if (ds.metric === mk) ds.hidden = !show });
+                    chart.update();
+                });
+                togglesContainer.appendChild(chk); togglesContainer.appendChild(lbl);
+            });
+        </script>
+
+            <script>
+                // テーブルの色付け: 文字は黒（負数は赤）、指標色はセル左ボーダーとヘッダー背景で示す
+                (function(){
+                    function hexToRgba(hex, a){
+                        if (!hex) return '';
+                        let c = hex.replace('#','');
+                        if (c.length === 3) c = c.split('').map(ch=>ch+ch).join('');
+                        const r = parseInt(c.substring(0,2),16);
+                        const g = parseInt(c.substring(2,4),16);
+                        const b = parseInt(c.substring(4,6),16);
+                        return `rgba(${r},${g},${b},${a})`;
+                    }
+
+                    function applyTableColors(){
+                        try{
+                            const shopCount = shopNames.length;
+                            const metricCount = metricKeys.length;
+                            if (!shopCount || !metricCount) return;
+
+                            const tables = document.querySelectorAll('.table-container table');
+                            tables.forEach(table => {
+                                const theadRows = table.tHead ? table.tHead.rows : [];
+                                const isStructured = theadRows && theadRows.length >= 2 && theadRows[0].querySelectorAll('th[colspan]').length > 0;
+                                const tbody = table.tBodies[0];
+                                if (!tbody) return;
+
+                                // 各行のセルに左ボーダーで指標色を付与。文字色は黒、負数は赤。
+                                Array.from(tbody.rows).forEach(row => {
+                                    for (let mk=0; mk<metricCount; mk++){
+                                        const color = metricColors[mk % metricColors.length];
+                                        for (let sidx=0; sidx<shopCount; sidx++){
+                                            let cellIndex = isStructured ? 1 + mk * shopCount + sidx : 1 + sidx * metricCount + mk;
+                                            const cell = row.cells[cellIndex];
+                                            if (!cell) continue;
+                                            const raw = cell.textContent.trim().replace(/,/g,'');
+                                            const num = Number(raw);
+                                            if ((raw.startsWith('-')) || (!isNaN(num) && num < 0)){
+                                                cell.style.color = 'red';
+                                            } else {
+                                                cell.style.color = '#111';
+                                            }
+                                            // セル背景全体を薄色で塗る（指標色を目立たせる）
+                                            const bg = hexToRgba(color, 0.06);
+                                            cell.style.backgroundColor = bg;
+                                            cell.style.borderLeft = '';
+                                        }
+                                    }
+                                });
+
+                                // ヘッダー: 透過をやめて不透明な白背景にし、上部に指標色のストライプを付ける。
+                                if (theadRows && theadRows.length){
+                                    // 動的に sticky top を調整（1行目の高さを基準に2行目を配置）
+                                    try{
+                                        const firstRow = theadRows[0];
+                                        const secondRow = theadRows[1];
+                                        if (firstRow){
+                                            Array.from(firstRow.cells).forEach(th => { th.style.backgroundColor = '#fff'; th.style.color = '#111'; th.style.zIndex = 15; });
+                                        }
+                                        if (secondRow){
+                                            Array.from(secondRow.cells).forEach(th => { th.style.backgroundColor = '#fff'; th.style.color = '#111'; th.style.zIndex = 14; });
+                                            // set top offset for second row to the pixel height of first row
+                                            const h = firstRow.getBoundingClientRect().height || firstRow.offsetHeight || 42;
+                                            Array.from(secondRow.cells).forEach(th => { th.style.top = h + 'px'; });
+                                        }
+
+                                        // 指標ごとに上部のストライプを設定
+                                        if (isStructured && firstRow){
+                                            let col = 1;
+                                            for (let mk=0; mk<metricCount; mk++){
+                                                const color = metricColors[mk % metricColors.length];
+                                                const th = firstRow.cells[col];
+                                                if (th){
+                                                    th.style.borderTop = 'none';
+                                                }
+                                                col += (firstRow.cells[col] && firstRow.cells[col].colSpan) ? firstRow.cells[col].colSpan : (table.tHead.rows[0].cells[col-1] ? (table.tHead.rows[0].cells[col-1].colSpan || 1) : 1);
+                                            }
+                                        } else if (theadRows[0]){
+                                            // フォールバック: 各列に小さな上部ストライプ
+                                            let col = 1;
+                                            for (let sidx=0; sidx<shopCount; sidx++){
+                                                for (let mk=0; mk<metricCount; mk++){
+                                                    const th = theadRows[0].cells[col++];
+                                                    if (!th) continue;
+                                                    th.style.borderTop = 'none';
+                                                }
+                                            }
+                                        }
+                                    }catch(e){console.error('header adjust error', e)}
+                                }
+                            });
+                        }catch(e){console.error('applyTableColors error', e)}
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function(){ setTimeout(applyTableColors, 80); });
+                })();
+            </script>
+
+        {% if table_shops and table_rows_structured and table_rows_structured|length %}
+        <div class="table-container" style="margin-top:18px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="text-align:left" rowspan="2">部門名</th>
+                        {% for ml in metric_labels %}
+                            <th style="text-align:center" colspan="{{ table_shops|length }}">{{ ml }}</th>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        {% for ml in metric_labels %}
+                            {% for s in table_shops %}
+                                <th style="text-align:right">{{ s.name }}</th>
+                            {% endfor %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_rows_structured %}
+                        <tr>
+                            <td style="text-align:left">{{ row.dept_name }}</td>
+                            {% for m in row.metrics %}
+                                {% for v in m %}
+                                    <td style="text-align:right">{{ v }}</td>
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th style="text-align:left">合計</th>
+                        {% for per_metric in totals_per_metric %}
+                            {% for t in per_metric %}
+                                <th style="text-align:right">{{ t }}</th>
+                            {% endfor %}
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% endif %}
+            {# フォールバック: 構造化行が無い/空の場合は従来形式で表示する #}
+            {% if table_shops and not table_rows_structured and table_rows %}
+            <div class="table-container" style="margin-top:18px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align:left">部門名</th>
+                            {% for s in table_shops %}
+                                {% for ml in metric_labels %}
+                                    <th style="text-align:right">{{ s.name }} {{ ml }}</th>
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in table_rows %}
+                            <tr>
+                                <td style="text-align:left">{{ row.dept_name }}</td>
+                                {% for v in row.values %}
+                                    <td style="text-align:right">{{ v }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+    {% endif %}
+</div>
+</body>
+</html>

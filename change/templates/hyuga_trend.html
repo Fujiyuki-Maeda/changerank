@@ -1,26 +1,55 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ shop_name }} 売上構成比推移</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
         .nav-links { margin-bottom: 20px; }
         .nav-links a { text-decoration: none; color: #6c757d; font-weight: bold; padding: 5px 10px; background: #eee; border-radius: 5px; }
         .chart-container { position: relative; height: 60vh; width: 100%; }
+
+        /* ★タブレット・スマホ向けの調整 (iPad / iPad mini) ★ */
+        @media screen and (max-width: 1024px) {
+            body { padding: 10px; }
+            .container { padding: 15px; width: 98%; }
+            h1 { font-size: 1.5rem; }
+
+            /* ボタンを中央寄せにして押しやすく */
+            .action-buttons {
+                justify-content: center;
+            }
+            .btn {
+                font-size: 0.85rem;
+                padding: 8px 12px;
+                flex: 1 1 auto; /* 幅を自動調整 */
+                text-align: center;
+            }
+            .separator { display: none; } /* 狭いときは区切り線を消す */
+
+            /* テーブルの固定列を少し狭くして表示領域を確保 */
+            .history-table th.dept-col { width: 140px; }
+            .history-table th, .history-table td { font-size: 0.85rem; padding: 8px 4px; }
+
+            /* バッジのサイズ調整 */
+            .rank-num { font-size: 1rem; }
+            .share-badge { font-size: 0.7rem; padding: 1px 4px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="nav-links"><a href="{% url 'dashboard' %}">← メニューに戻る</a></div>
-    
-    <h1>🏠 {{ shop_name }} 売上構成比推移 (10年分)</h1>
-    
+
+    <h1>🏠 {{ shop_name }} 売上推移と構成比 (10年分)</h1>
+
     {% if error %}
         <p style="color: red; text-align: center;">{{ error }}</p>
     {% else %}
@@ -32,9 +61,9 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const labels = {{ labels|safe }};
                 const datasets = {{ datasets|safe }};
-                
+
                 const ctx = document.getElementById('hyugaChart').getContext('2d');
-                
+
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -46,21 +75,53 @@
                         maintainAspectRatio: false,
                         scales: {
                             x: {
-                                stacked: true, // 積み上げ
+                                stacked: true,
                             },
                             y: {
-                                stacked: true, // 積み上げ
+                                stacked: true,
                                 beginAtZero: true,
-                                max: 100,
-                                title: { display: true, text: '構成比 (%)' }
+                                title: {
+                                    display: true,
+                                    text: '売上推移 (規模)', // タイトル変更
+                                    font: { size: 14, weight: 'bold' }
+                                },
+                                ticks: {
+                                    display: false // ★金額（目盛り）を隠す
+                                }
                             }
                         },
                         plugins: {
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        return context.dataset.label + ': ' + context.parsed.y + '%';
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        const value = context.parsed.y;
+
+                                        // 合計を計算して構成比を出す
+                                        const dataIndex = context.dataIndex;
+                                        const allDatasets = context.chart.data.datasets;
+                                        let total = 0;
+                                        for (let i = 0; i < allDatasets.length; i++) {
+                                            total += (allDatasets[i].data[dataIndex] || 0);
+                                        }
+
+                                        const percentage = total > 0 ? Math.round((value / total * 100) * 10) / 10 : 0;
+
+                                        // ★金額を表示せず、％だけを表示する
+                                        label += percentage + '%';
+
+                                        return label;
                                     }
+                                }
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20
                                 }
                             }
                         }
@@ -68,6 +129,39 @@
                 });
             });
         </script>
+    {% endif %}
+    <!-- 売上テーブル（部門を行、年を列にした横断テーブル） -->
+    {% if table_rows and table_years %}
+    <div style="margin-top:24px; overflow:auto;">
+        <table style="width:100%; border-collapse:collapse; min-width:900px;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:8px 12px; background:#f8f9fa; border-bottom:2px solid #e9ecef;">部門</th>
+                    {% for y in table_years %}
+                    <th style="text-align:right; padding:8px 12px; background:#f8f9fa; border-bottom:2px solid #e9ecef;">{{ y }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in table_rows %}
+                <tr>
+                    <td style="padding:8px 12px; border-top:1px solid #f1f3f5;">{{ row.dept }}</td>
+                    {% for v in row.values %}
+                    <td style="padding:8px 12px; border-top:1px solid #f1f3f5; text-align:right;">{{ v }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th style="text-align:left; padding:8px 12px; background:#fafafa; border-top:2px solid #e9ecef;">合計</th>
+                    {% for t in table_totals %}
+                    <th style="text-align:right; padding:8px 12px; background:#fafafa; border-top:2px solid #e9ecef;">{{ t }}</th>
+                    {% endfor %}
+                </tr>
+            </tfoot>
+        </table>
+    </div>
     {% endif %}
 </div>
 

@@ -11,15 +11,15 @@
         body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
-        
-        .back-btn { 
-            display: inline-block; 
-            margin-bottom: 20px; 
-            padding: 10px 20px; 
-            background: #6c757d; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 5px; 
+
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
             font-weight: bold;
             transition: background 0.3s;
         }
@@ -32,69 +32,168 @@
 
 <div class="container">
     <a href="{% url 'dashboard' %}" class="back-btn">← ランキングに戻る</a>
-    
-    <h1>📈 部門別 売上シェア推移</h1>
-    
+
+    <h1>📈 グループ店総合 部門別 売上シェア推移</h1>
+
     {% if error %}
         <p style="color: red; text-align: center;">{{ error }}</p>
     {% else %}
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
+            <form id="monthForm" method="get" style="margin:0;">
+                <label for="monthSelect" style="font-weight:600; margin-right:8px;">月フィルタ:</label>
+                <select id="monthSelect" name="month" style="padding:6px 8px; border-radius:6px; border:1px solid #ccc;">
+                    <option value="">全て</option>
+                    {% for m in month_choices %}
+                        <option value="{{ m.value }}" {% if target_month and m.value == target_month %}selected{% endif %} {% if m.disabled %}disabled{% endif %}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <div style="font-size:0.9rem; color:#666;">表示点数: {{ labels|length }}</div>
+        </div>
+
         <div class="chart-container">
             <canvas id="trendChart"></canvas>
         </div>
-    {% endif %}
-</div>
 
-<script>
-    // views.pyから渡されたデータを受け取る
-    const labels = {{ labels|safe }};
-    const datasets = {{ datasets|safe }};
+        
 
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    title: {
-                        display: true,
-                        text: 'シェア (%)'
+        <!-- 金額テーブル（サーバ側でフォーマット済み） -->
+        <div style="margin-top:12px; overflow:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#f1f5f9;">
+                        <th style="padding:8px; border:1px solid #e6edf3; text-align:left;">部門名</th>
+                        {% for lbl in labels_list %}
+                            <th style="padding:8px; border:1px solid #e6edf3; text-align:right;">{{ lbl }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in amounts_table %}
+                        <tr>
+                            <td style="padding:6px 8px; border:1px solid #eef3f7;">{{ row.name }}</td>
+                            {% for a in row.amounts %}
+                                <td style="padding:6px 8px; border:1px solid #eef3f7; text-align:right;">{{ a }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labels = {{ labels|default:"[]"|safe }};
+        const datasets = {{ datasets|default:"[]"|safe }};
+
+        // 強制的にデータを数値化し、全データの最大値から Y 軸上限を決める
+        (function(){
+            try{
+                datasets.forEach(ds => {
+                    if (Array.isArray(ds.data)){
+                        ds.data = ds.data.map(v => {
+                            if (v === null || v === undefined || v === '') return null;
+                            if (typeof v === 'number') return v;
+                            // remove commas and coerce
+                            const n = Number(String(v).replace(/,/g, ''));
+                            return isNaN(n) ? null : n;
+                        });
                     }
-                }
+                });
+            }catch(e){ console.warn('data coercion failed', e); }
+        })();
+
+        // Y軸の最大値を動的に計算するヘルパー関数は、ここでは一旦使わない
+        // function updateYAxisMax(chart) { ... }
+
+        const ctx = document.getElementById('trendChart').getContext('2d');
+
+        // Y軸の適切な上限を設定
+        let globalMax = 0;
+        datasets.forEach(ds => { if (Array.isArray(ds.data)) ds.data.forEach(v => { if (typeof v === 'number' && !isNaN(v)) globalMax = Math.max(globalMax, v); }); });
+        const suggestedMax = globalMax > 0 ? Math.ceil(globalMax / 10) * 10 : 10;
+
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
             },
-            plugins: {
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y + '%';
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: suggestedMax,
+                        title: {
+                            display: true,
+                            text: 'シェア (%)'
                         }
                     }
                 },
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y + '%';
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        },
+                        // カスタム onClick: データセットの表示/非表示を切り替えた後に
+                        // 表示中のデータを見て Y 軸の上限を再計算する
+                        onClick: function(e, legendItem, legend) {
+                            const ci = legend.chart;
+                            const index = legendItem.datasetIndex;
+                            const meta = ci.getDatasetMeta(index);
+                            // toggle hidden state
+                            meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : !meta.hidden;
+
+                            // 再計算: 表示中のデータの最大値を求める
+                            let gmax = 0;
+                            ci.data.datasets.forEach((ds, i) => {
+                                const m = ci.getDatasetMeta(i);
+                                if (!m.hidden) {
+                                    if (Array.isArray(ds.data)) {
+                                        ds.data.forEach(v => { if (typeof v === 'number' && !isNaN(v)) gmax = Math.max(gmax, v); });
+                                    }
+                                }
+                            });
+                            const newMax = gmax > 0 ? Math.ceil(gmax / 10) * 10 : 10;
+                            ci.options.scales.y.max = newMax;
+                            ci.update();
+                        }
                     }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 }
-            },
-            interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
             }
-        }
+        });
+
+        // 初期描画後の Y軸更新もここでは行わない
+        // updateYAxisMax(myChart);
     });
 </script>
+        
+        <script>
+            // 月選択が変わったらフォーム送信
+            document.getElementById('monthSelect').addEventListener('change', function(){
+                document.getElementById('monthForm').submit();
+            });
+        </script>
+    {% endif %}
+</div>
 
 </body>
 </html>
